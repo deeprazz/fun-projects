@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>String Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;1,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#15100b;
+    --brass:#c9a15e;
+    --brass-dim:#7d6a48;
+    --ember:#e2933f;
+    --ember-hot:#ffb464;
+    --parchment:#ece3d2;
+    --muted:#8a7f6e;
+    --line:rgba(201,161,94,0.14);
+    --rec:#d94f4f;
+    --font-display:'Fraunces', serif;
+    --font-body:'Inter', system-ui, sans-serif;
+    --font-mono:'JetBrains Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg-deep);}
+  body{
+    font-family:var(--font-body); color:var(--parchment);
+    display:flex; flex-direction:column; height:100vh; overflow:hidden;
+    background:
+      radial-gradient(ellipse at 50% -10%, rgba(226,147,63,0.07), transparent 55%),
+      var(--bg-deep);
+  }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 28px; border-bottom:1px solid var(--line); flex-shrink:0;
+    flex-wrap:wrap; gap:10px;
+  }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand h1{ font-family:var(--font-display); font-weight:600; font-size:22px; letter-spacing:0.01em; margin:0; }
+  .brand span{ font-family:var(--font-mono); font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--brass-dim); }
+  .controls{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .control-group{ display:flex; align-items:center; gap:9px; }
+  .control-label{ font-family:var(--font-mono); font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); }
+  input[type="range"]{ -webkit-appearance:none; width:90px; height:2px; background:var(--brass-dim); border-radius:2px; outline:none; }
+  input[type="range"]::-webkit-slider-thumb{ -webkit-appearance:none; width:12px;height:12px;border-radius:50%; background:var(--brass); cursor:pointer; box-shadow:0 0 6px rgba(201,161,94,0.5); }
+  input[type="range"]:focus-visible{ outline:2px solid var(--ember-hot); outline-offset:4px; }
+  .toggle-btn{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--muted); background:transparent; border:1px solid var(--brass-dim); border-radius:3px;
+    padding:6px 11px; cursor:pointer; transition:all 0.15s ease;
+  }
+  .toggle-btn.active{ color:var(--ember-hot); border-color:var(--ember); background:rgba(226,147,63,0.08); }
+  .toggle-btn:hover{ border-color:var(--brass); }
+  .toggle-btn:focus-visible{ outline:2px solid var(--ember-hot); outline-offset:2px; }
+  .toggle-btn.rec{ border-color:var(--rec); color:var(--rec); }
+  .toggle-btn.rec.active{ background:rgba(217,79,79,0.12); color:#ff8080; border-color:#ff8080; }
+  .toggle-btn.rec.active::before{ content:'\25CF '; }
+  .toggle-btn:disabled{ opacity:0.35; cursor:not-allowed; }
+
+  .stage-wrap{
+    flex:1; position:relative; display:flex; align-items:center; justify-content:center;
+    padding:0 24px; min-height:0;
+  }
+  #stage{ touch-action:none; width:100%; max-width:1040px; height:100%; max-height:520px; cursor:none; }
+  #stage:focus-visible{ outline:2px solid var(--ember-hot); outline-offset:4px; }
+  .hint{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.08em;
+    color:var(--muted); text-align:center; pointer-events:none; opacity:0.75;
+  }
+
+  .start-overlay{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:10px; background:rgba(21,16,11,0.86); backdrop-filter:blur(2px);
+    cursor:pointer; z-index:5; transition:opacity 0.35s ease;
+  }
+  .start-overlay.hidden{ opacity:0; pointer-events:none; }
+  .start-overlay .glyph{ font-family:var(--font-display); font-style:italic; font-size:32px; color:var(--ember-hot); }
+  .start-overlay p{ font-family:var(--font-mono); font-size:11px; letter-spacing:0.08em; color:var(--muted); text-transform:uppercase; margin:0; }
+
+  .cuesheet{
+    flex-shrink:0; border-top:1px solid var(--line); padding:12px 28px 16px;
+    display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap;
+  }
+  .cue-main{ display:flex; align-items:baseline; gap:18px; min-height:36px; }
+  .cue-note{ font-family:var(--font-display); font-style:italic; font-weight:500; font-size:28px; color:var(--ember-hot); min-width:64px; transition:opacity 0.3s ease; }
+  .cue-note.idle{ color:var(--brass-dim); font-style:normal; font-size:20px; }
+  .cue-detail{ font-family:var(--font-mono); font-size:11px; letter-spacing:0.06em; color:var(--muted); line-height:1.7; }
+  .cue-detail b{ color:var(--brass); font-weight:500; }
+
+  .rec-panel{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  #playback{ height:28px; display:none; }
+  #playback.show{ display:block; }
+  .dl-link{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--brass); text-decoration:none; border:1px solid var(--brass-dim); border-radius:3px;
+    padding:6px 10px; display:none;
+  }
+  .dl-link.show{ display:inline-block; }
+  .dl-link:hover, .dl-link:focus-visible{ border-color:var(--brass); color:var(--ember-hot); }
+  .sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+
+  @media (max-width: 640px){
+    .topbar{ padding:12px 16px; }
+    .brand h1{ font-size:18px; }
+    .controls{ gap:12px; }
+    input[type="range"]{ width:64px; }
+    .hint{ font-size:9px; padding:0 12px; }
+    .cuesheet{ padding:10px 16px 14px; }
+    .cue-note{ font-size:22px; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand">
+      <h1>String Studio</h1>
+      <span>Acoustic &middot; v3</span>
+    </div>
+    <div class="controls">
+      <div class="control-group">
+        <span class="control-label" id="volLabel">Vol</span>
+        <input type="range" id="volume" min="0" max="100" value="70" aria-labelledby="volLabel">
+      </div>
+      <button class="toggle-btn" id="reverbToggle" aria-pressed="false">Room: Off</button>
+      <button class="toggle-btn rec" id="recordToggle" aria-pressed="false">Record</button>
+    </div>
+  </div>
+
+  <div class="stage-wrap">
+    <div class="hint">slide to strum &middot; tap a string to pluck &middot; hold to mute &middot; keys 1&ndash;6 also pluck, space mutes</div>
+    <canvas id="stage" tabindex="0" role="application"
+      aria-label="Interactive guitar strings. Move a pointer across the strings to strum, tap a single string to pluck it, or hold still near a string to mute it. Keyboard alternative: number keys 1 through 6 pluck each string from high E to low E, spacebar mutes all ringing strings."></canvas>
+    <div class="start-overlay" id="startOverlay">
+      <div class="glyph">&#9835;</div>
+      <p>tap, click, or press a key to wake the strings</p>
+    </div>
+  </div>
+
+  <div class="cuesheet">
+    <div class="cue-main" aria-live="polite">
+      <div class="cue-note idle" id="cueNote">&mdash;</div>
+      <div class="cue-detail">
+        <div id="cueLine1">no string sounding</div>
+        <div id="cueLine2">&nbsp;</div>
+      </div>
+    </div>
+    <div class="rec-panel">
+      <audio id="playback" controls></audio>
+      <a class="dl-link" id="downloadLink" download="string-studio-take.wav">Download WAV</a>
+    </div>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  //  ┌─────────────────────────────────────────────────────────┐
+  //  │  oh hey, you actually opened the dev tools / source.     │
+  //  │  respect. most people just come for the strings.         │
+  //  │                                                           │
+  //  │  fun fact: there is not a single .mp3/.wav sample file    │
+  //  │  anywhere in this project. every note you hear was        │
+  //  │  invented on the spot by a 1983 algorithm having a        │
+  //  │  small existential crisis about what a guitar sounds      │
+  //  │  like. if it sounds wrong, that's not a bug, that's       │
+  //  │  Kevin Karplus and Alex Strong's problem, not mine.       │
+  //  │                                                           │
+  //  │  anyway. yes you can fork this. no you may not judge      │
+  //  │  the ScriptProcessorNode. it's deprecated but it's        │
+  //  │  trying its best, just like the rest of us.               │
+  //  └─────────────────────────────────────────────────────────┘
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ============================================================
+  // STRING DEFINITIONS
+  // ============================================================
+  const STRINGS = [
+    { note: 'E4', freq: 329.63, decay: 0.9935, thickness: 1.2 },
+    { note: 'B3', freq: 246.94, decay: 0.9945, thickness: 1.5 },
+    { note: 'G3', freq: 196.00, decay: 0.9950, thickness: 1.9 },
+    { note: 'D3', freq: 146.83, decay: 0.9958, thickness: 2.4 },
+    { note: 'A2', freq: 110.00, decay: 0.9965, thickness: 2.9 },
+    { note: 'E2', freq: 82.41,  decay: 0.9972, thickness: 3.5 },
+  ].map((s, i) => ({ ...s, id: i, y: 0, ringing: false, amp: 0, pluckTime: 0, phase: Math.random() * 10, variants: [] }));
+
+  // ============================================================
+  // AUDIO ENGINE
+  // Buffers are pre-synthesized ONCE at init (a few variants per
+  // string) so pluck() during play never runs the Karplus-Strong
+  // loop on the main thread — fixes the latency risk under fast
+  // strums. A compressor guards against clipping when several
+  // strings ring together. Recording captures raw PCM via a
+  // ScriptProcessorNode and is encoded to a real .wav on stop.
+  // ============================================================
+  const AudioEngine = (() => {
+    let ctx = null;
+    let master = null, dryGain = null, wetGain = null, convolver = null, compressor = null;
+    let recorderNode = null, silentSink = null;
+    let isRecording = false, recordedChunks = [];
+    let attackBuffers = [];
+    const activeVoices = new Map();
+    let ready = false;
+
+    function init() {
+      if (ctx) return;
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      master = ctx.createGain();
+      master.gain.value = 0.7;
+
+      compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.value = -18;
+      compressor.knee.value = 24;
+      compressor.ratio.value = 10;
+      compressor.attack.value = 0.003;
+      compressor.release.value = 0.22;
+
+      dryGain = ctx.createGain();
+      wetGain = ctx.createGain();
+      wetGain.gain.value = 0;
+
+      convolver = ctx.createConvolver();
+      convolver.buffer = makeImpulse(2.2, 2.4);
+
+      dryGain.connect(master);
+      convolver.connect(wetGain);
+      wetGain.connect(master);
+      master.connect(compressor);
+      compressor.connect(ctx.destination);
+
+      // recording tap: ScriptProcessor must be connected through to
+      // destination to fire onaudioprocess in most browsers, so route
+      // it through a silent (gain 0) sink rather than double-outputting.
+      recorderNode = ctx.createScriptProcessor(4096, 1, 1);
+      silentSink = ctx.createGain();
+      silentSink.gain.value = 0;
+      compressor.connect(recorderNode);
+      recorderNode.connect(silentSink);
+      silentSink.connect(ctx.destination);
+      recorderNode.onaudioprocess = (e) => {
+        if (!isRecording) return;
+        recordedChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+      };
+
+      precomputeBuffers();
+      ready = true;
+    }
+
+    function makeImpulse(duration, decayPower) {
+      const rate = ctx.sampleRate;
+      const len = Math.floor(rate * duration);
+      const buf = ctx.createBuffer(2, len, rate);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = buf.getChannelData(ch);
+        for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decayPower);
+      }
+      return buf;
+    }
+
+    function synthPluck(frequency, decayFactor, duration = 2.8) {
+      const sr = ctx.sampleRate;
+      const n = Math.max(2, Math.round(sr / frequency));
+      const totalSamples = Math.floor(sr * duration);
+      const buffer = ctx.createBuffer(1, totalSamples, sr);
+      const out = buffer.getChannelData(0);
+      const ring = new Float32Array(n);
+      for (let i = 0; i < n; i++) ring[i] = Math.random() * 2 - 1;
+      let pos = 0;
+      for (let i = 0; i < totalSamples; i++) {
+        const cur = ring[pos];
+        const next = ring[(pos + 1) % n];
+        const avg = decayFactor * 0.5 * (cur + next);
+        out[i] = cur;
+        ring[pos] = avg;
+        pos = (pos + 1) % n;
+      }
+      return buffer;
+    }
+
+    function synthAttack(duration = 0.018) {
+      const sr = ctx.sampleRate;
+      const n = Math.floor(sr * duration);
+      const buffer = ctx.createBuffer(1, n, sr);
+      const out = buffer.getChannelData(0);
+      for (let i = 0; i < n; i++) out[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      return buffer;
+    }
+
+    // Pre-generate a handful of variants per string (with tiny detune
+    // baked in) up front, so nothing synthesizes during actual play.
+    function precomputeBuffers() {
+      const VARIANTS = 3;
+      STRINGS.forEach((s) => {
+        for (let v = 0; v < VARIANTS; v++) {
+          const detune = 1 + (Math.random() - 0.5) * 0.006;
+          s.variants.push(synthPluck(s.freq * detune, s.decay));
+        }
+      });
+      attackBuffers = [synthAttack(), synthAttack(0.014), synthAttack(0.022)];
+    }
+
+    function setVolume(v) { if (master) master.gain.value = v; }
+    function setReverb(on) { if (!ctx) return; wetGain.gain.setTargetAtTime(on ? 0.35 : 0, ctx.currentTime, 0.05); }
+
+    function pluck(stringDef, velocity, direction) {
+      init();
+      if (ctx.state === 'suspended') ctx.resume();
+      const now = ctx.currentTime;
+
+      const buf = stringDef.variants[Math.floor(Math.random() * stringDef.variants.length)];
+      const source = ctx.createBufferSource();
+      source.buffer = buf;
+
+      const baseCutoff = direction === 'down' ? 5600 : 3000;
+      const peakCutoff = Math.min(baseCutoff + velocity * 5200, 13000);
+      const settleCutoff = Math.max(900, peakCutoff * 0.28);
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(peakCutoff, now);
+      filter.frequency.exponentialRampToValueAtTime(settleCutoff, now + 1.1);
+      filter.Q.value = 0.5;
+
+      const gainNode = ctx.createGain();
+      const peak = 0.14 + velocity * 0.5;
+      gainNode.gain.setValueAtTime(0.0001, now);
+      gainNode.gain.exponentialRampToValueAtTime(peak, now + 0.004);
+
+      source.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(dryGain);
+      gainNode.connect(convolver);
+      source.start(now);
+      source.stop(now + 2.9);
+
+      const bodyFilter = ctx.createBiquadFilter();
+      bodyFilter.type = 'bandpass';
+      bodyFilter.frequency.value = 100 + stringDef.id * 6;
+      bodyFilter.Q.value = 1.4;
+      const bodyGain = ctx.createGain();
+      bodyGain.gain.setValueAtTime(peak * 0.22, now);
+      bodyGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+      gainNode.connect(bodyFilter);
+      bodyFilter.connect(bodyGain);
+      bodyGain.connect(dryGain);
+
+      const attackBuf = attackBuffers[Math.floor(Math.random() * attackBuffers.length)];
+      const attackSrc = ctx.createBufferSource();
+      attackSrc.buffer = attackBuf;
+      const attackFilter = ctx.createBiquadFilter();
+      attackFilter.type = 'highpass';
+      attackFilter.frequency.value = direction === 'down' ? 1800 : 900;
+      const attackGain = ctx.createGain();
+      attackGain.gain.value = 0.06 + velocity * 0.16;
+      attackSrc.connect(attackFilter);
+      attackFilter.connect(attackGain);
+      attackGain.connect(dryGain);
+      attackSrc.start(now);
+
+      const prev = activeVoices.get(stringDef.id);
+      if (prev) {
+        try { prev.gainNode.gain.cancelScheduledValues(now); prev.gainNode.gain.setTargetAtTime(0, now, 0.03); } catch (e) {}
+      }
+      activeVoices.set(stringDef.id, { source, gainNode });
+      return peak;
+    }
+
+    function mute(stringId) {
+      if (!ctx) return;
+      const v = activeVoices.get(stringId);
+      if (v) {
+        const now = ctx.currentTime;
+        v.gainNode.gain.cancelScheduledValues(now);
+        v.gainNode.gain.setTargetAtTime(0, now, 0.04);
+      }
+    }
+
+    function startRecording() { init(); recordedChunks = []; isRecording = true; }
+
+    function stopRecording() {
+      isRecording = false;
+      let total = 0;
+      recordedChunks.forEach((c) => { total += c.length; });
+      const merged = new Float32Array(total);
+      let offset = 0;
+      recordedChunks.forEach((c) => { merged.set(c, offset); offset += c.length; });
+      recordedChunks = [];
+      return encodeWAV(merged, ctx.sampleRate);
+    }
+
+    function encodeWAV(samples, sampleRate) {
+      const buffer = new ArrayBuffer(44 + samples.length * 2);
+      const view = new DataView(buffer);
+      const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+      writeStr(0, 'RIFF');
+      view.setUint32(4, 36 + samples.length * 2, true);
+      writeStr(8, 'WAVE');
+      writeStr(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeStr(36, 'data');
+      view.setUint32(40, samples.length * 2, true);
+      let off = 44;
+      for (let i = 0; i < samples.length; i++, off += 2) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      }
+      return new Blob([view], { type: 'audio/wav' });
+    }
+
+    return { init, pluck, mute, setVolume, setReverb, startRecording, stopRecording, isReady: () => ready };
+  })();
+
+  // ============================================================
+  // CANVAS / STAGE SETUP
+  // ============================================================
+  const canvas = document.getElementById('stage');
+  const ctx2d = canvas.getContext('2d');
+  const stageWrap = document.querySelector('.stage-wrap');
+  let W = 0, H = 0, DPR = 1;
+  const padX = 64;
+
+  function layout() {
+    const rect = canvas.getBoundingClientRect();
+    DPR = window.devicePixelRatio || 1;
+    W = rect.width; H = rect.height;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    ctx2d.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const top = 50;
+    const spacing = (H - 100) / (STRINGS.length - 1);
+    STRINGS.forEach((s, i) => { s.y = top + i * spacing; });
+  }
+  new ResizeObserver(layout).observe(stageWrap);
+  window.addEventListener('load', layout);
+
+  // ============================================================
+  // START OVERLAY
+  // ============================================================
+  const startOverlay = document.getElementById('startOverlay');
+  let started = false;
+  function wake() {
+    if (started) return;
+    started = true;
+    AudioEngine.init();
+    if (AudioEngine && AudioEngine.init) { /* resume happens in pluck too */ }
+    startOverlay.classList.add('hidden');
+  }
+  startOverlay.addEventListener('click', wake);
+  startOverlay.addEventListener('touchstart', wake, { passive: true });
+
+  // ============================================================
+  // GESTURE ENGINE
+  // ============================================================
+  const REFRACTORY_MS = 90;
+  const HOLD_MS = 380;
+  const HOLD_MOVE_TOLERANCE = 6;
+  const TAP_MAX_MS = 180;
+  const TAP_MAX_MOVE = 8;
+  const SNAP_RANGE = 26;
+  const CURSOR_GLOW_RANGE = 40;
+
+  let pointerActive = false;
+  let lastPoint = null, downPoint = null, downTime = 0, hasMoved = false, holdTimer = null;
+  let cursorPos = null, cursorVisible = false;
+  const recentSpeeds = [];
+  const sparks = [];
+
+  function localPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top, t: e.timeStamp };
+  }
+  function withinInstrument(x) { return x > padX * 0.4 && x < W - padX * 0.4; }
+  function smoothedSpeed(raw) {
+    recentSpeeds.push(raw);
+    if (recentSpeeds.length > 4) recentSpeeds.shift();
+    return recentSpeeds.reduce((a, b) => a + b, 0) / recentSpeeds.length;
+  }
+
+  function checkCrossings(prev, curr) {
+    if (!prev || !curr) return;
+    const dt = Math.max(1, curr.t - prev.t);
+    const dist = Math.hypot(curr.x - prev.x, curr.y - prev.y);
+    const speed = smoothedSpeed(dist / dt);
+    STRINGS.forEach((s) => {
+      const now = performance.now();
+      if (s._lastTrigger && now - s._lastTrigger < REFRACTORY_MS) return;
+      const crossedDown = prev.y < s.y && curr.y >= s.y;
+      const crossedUp = prev.y > s.y && curr.y <= s.y;
+      if (!crossedDown && !crossedUp) return;
+      const ratio = (s.y - prev.y) / (curr.y - prev.y || 0.0001);
+      const crossX = prev.x + ratio * (curr.x - prev.x);
+      if (!withinInstrument(crossX)) return;
+      const velocity = Math.min(1, speed / 1.6);
+      const direction = crossedDown ? 'down' : 'up';
+      s._lastTrigger = now;
+      triggerString(s, velocity, direction, crossX);
+    });
+  }
+
+  function nearestString(y) {
+    let best = null, bestDist = Infinity;
+    STRINGS.forEach((s) => { const d = Math.abs(s.y - y); if (d < bestDist) { bestDist = d; best = s; } });
+    return bestDist <= SNAP_RANGE ? best : null;
+  }
+
+  function triggerString(s, velocity, direction, atX) {
+    wake();
+    AudioEngine.pluck(s, velocity, direction);
+    s.ringing = true;
+    s.amp = 0.5 + velocity * 1.1;
+    s.pluckTime = performance.now();
+    s.direction = direction;
+    sparks.push({ x: atX ?? (W / 2), y: s.y, life: 1, hot: velocity });
+    updateCue(s, velocity, direction);
+  }
+
+  function updateCue(s, velocity, direction) {
+    const dynMarks = ['pp', 'p', 'mp', 'mf', 'f', 'ff'];
+    const idx = Math.min(dynMarks.length - 1, Math.floor(velocity * dynMarks.length));
+    const dyn = dynMarks[idx];
+    const dynNames = { pp:'pianissimo', p:'piano', mp:'mezzo-piano', mf:'mezzo-forte', f:'forte', ff:'fortissimo' };
+    const noteEl = document.getElementById('cueNote');
+    noteEl.textContent = s.note;
+    noteEl.classList.remove('idle');
+    document.getElementById('cueLine1').innerHTML =
+      `<b>${s.freq.toFixed(2)} Hz</b> &middot; ${direction === 'down' ? 'downstroke' : 'upstroke'} &middot; ${dyn}`;
+    document.getElementById('cueLine2').textContent = dynNames[dyn];
+  }
+
+  function armHoldTimer(point) {
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => {
+      if (!pointerActive) return;
+      const moveDist = Math.hypot(point.x - (lastPoint?.x ?? point.x), point.y - (lastPoint?.y ?? point.y));
+      if (hasMoved && moveDist > HOLD_MOVE_TOLERANCE) return;
+      const s = nearestString(point.y);
+      if (s) {
+        AudioEngine.mute(s.id);
+        s.ringing = false; s.amp = 0;
+        document.getElementById('cueNote').textContent = '\u25CF';
+        document.getElementById('cueLine1').innerHTML = `<b>${s.note}</b> muted`;
+        document.getElementById('cueLine2').textContent = 'palm mute';
+      }
+    }, HOLD_MS);
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    wake();
+    canvas.setPointerCapture(e.pointerId);
+    canvas.focus({ preventScroll: true });
+    pointerActive = true; hasMoved = false;
+    const p = localPos(e);
+    downPoint = p; downTime = performance.now(); lastPoint = p;
+    cursorPos = p; cursorVisible = true;
+    armHoldTimer(p);
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    const p = localPos(e);
+    cursorPos = p; cursorVisible = true;
+    if (!pointerActive) return;
+    const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    const pts = events.length ? events.map(localPos) : [p];
+    pts.forEach((pt) => {
+      if (lastPoint) {
+        const moveDist = Math.hypot(pt.x - lastPoint.x, pt.y - lastPoint.y);
+        if (moveDist > HOLD_MOVE_TOLERANCE) hasMoved = true;
+        checkCrossings(lastPoint, pt);
+      }
+      lastPoint = pt;
+    });
+    if (hasMoved) armHoldTimer(lastPoint);
+  });
+
+  canvas.addEventListener('pointerenter', (e) => { cursorPos = localPos(e); cursorVisible = true; });
+  canvas.addEventListener('pointerleave', (e) => { cursorVisible = false; if (pointerActive) endPointer(e); });
+
+  function endPointer(e) {
+    if (!pointerActive) return;
+    pointerActive = false;
+    clearTimeout(holdTimer);
+    const p = localPos(e);
+    const dt = performance.now() - downTime;
+    const moveDist = downPoint ? Math.hypot(p.x - downPoint.x, p.y - downPoint.y) : 999;
+    if (dt <= TAP_MAX_MS && moveDist <= TAP_MAX_MOVE) {
+      const s = nearestString(p.y);
+      if (s) triggerString(s, 0.55, 'down', p.x);
+    }
+    downPoint = null; lastPoint = null; recentSpeeds.length = 0;
+  }
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+
+  // ---- keyboard fallback: 1-6 pluck strings top-to-bottom, space mutes all ----
+  const KEY_MAP = { '1': 0, '2': 1, '3': 2, '4': 3, '5': 4, '6': 5 };
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    if (Object.prototype.hasOwnProperty.call(KEY_MAP, e.key)) {
+      wake();
+      const s = STRINGS[KEY_MAP[e.key]];
+      triggerString(s, 0.6, 'down', W / 2);
+    } else if (e.code === 'Space' && document.activeElement === canvas) {
+      e.preventDefault();
+      wake();
+      STRINGS.forEach((s) => { AudioEngine.mute(s.id); s.ringing = false; s.amp = 0; });
+      document.getElementById('cueNote').textContent = '\u25CF';
+      document.getElementById('cueLine1').textContent = 'all strings muted';
+      document.getElementById('cueLine2').textContent = 'palm mute';
+    }
+  });
+
+  // ============================================================
+  // PHYSICS + RENDER LOOP
+  // ============================================================
+  const DAMPING = 2.1;
+  const VIS_FREQ = 11;
+  const SEGMENTS = 44;
+
+  function drawBackground() {
+    const grad = ctx2d.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#241a10');
+    grad.addColorStop(0.55, '#1c140d');
+    grad.addColorStop(1, '#140e09');
+    ctx2d.fillStyle = grad;
+    ctx2d.fillRect(0, 0, W, H);
+
+    ctx2d.strokeStyle = 'rgba(201,161,94,0.10)';
+    ctx2d.lineWidth = 1;
+    ctx2d.beginPath();
+    ctx2d.roundRect(padX * 0.32, 18, W - padX * 0.64, H - 36, 20);
+    ctx2d.stroke();
+
+    ctx2d.strokeStyle = 'rgba(201,161,94,0.035)';
+    for (let gy = 30; gy < H - 20; gy += 14) {
+      ctx2d.beginPath();
+      for (let x = padX * 0.5; x < W - padX * 0.5; x += 20) {
+        const wob = Math.sin((x + gy * 3) * 0.02) * 3;
+        if (x === padX * 0.5) ctx2d.moveTo(x, gy + wob); else ctx2d.lineTo(x, gy + wob);
+      }
+      ctx2d.stroke();
+    }
+
+    ctx2d.fillStyle = 'rgba(236,227,210,0.5)';
+    ctx2d.fillRect(padX - 4, 34, 3, H - 68);
+    ctx2d.fillRect(W - padX + 1, 34, 3, H - 68);
+  }
+
+  function drawSparks() {
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const sp = sparks[i];
+      sp.life -= reducedMotion ? 0.12 : 0.045;
+      if (sp.life <= 0) { sparks.splice(i, 1); continue; }
+      const r = reducedMotion ? 4 : 3 + (1 - sp.life) * 14 * (0.4 + sp.hot);
+      ctx2d.beginPath();
+      ctx2d.arc(sp.x, sp.y, r, 0, Math.PI * 2);
+      ctx2d.strokeStyle = `rgba(255,180,100,${sp.life * 0.55})`;
+      ctx2d.lineWidth = 1.4;
+      ctx2d.stroke();
+    }
+  }
+
+  function drawCursor() {
+    if (!cursorVisible || !cursorPos) return;
+    const near = nearestString(cursorPos.y);
+    ctx2d.save();
+    if (near && withinInstrument(cursorPos.x)) {
+      const dist = Math.abs(near.y - cursorPos.y);
+      const glow = Math.max(0, 1 - dist / CURSOR_GLOW_RANGE);
+      if (glow > 0) {
+        ctx2d.beginPath();
+        ctx2d.moveTo(padX, near.y);
+        ctx2d.lineTo(W - padX, near.y);
+        ctx2d.strokeStyle = `rgba(255,180,100,${glow * 0.25})`;
+        ctx2d.lineWidth = 4;
+        ctx2d.stroke();
+      }
+    }
+    ctx2d.translate(cursorPos.x, cursorPos.y);
+    ctx2d.rotate(Math.PI / 4);
+    ctx2d.fillStyle = 'rgba(236,227,210,0.85)';
+    ctx2d.fillRect(-4, -4, 8, 8);
+    ctx2d.restore();
+  }
+
+  function drawString(s, t) {
+    const x0 = padX, x1 = W - padX;
+    const len = x1 - x0;
+    const elapsed = (t - s.pluckTime) / 1000;
+    ctx2d.beginPath();
+    if (s.ringing && elapsed >= 0 && elapsed < 3) {
+      const envelope = s.amp * Math.exp(-DAMPING * elapsed);
+      if (envelope < 0.01) {
+        s.ringing = false;
+      } else {
+        if (reducedMotion) {
+          ctx2d.moveTo(x0, s.y);
+          ctx2d.lineTo(x1, s.y);
+          ctx2d.strokeStyle = `rgba(255,180,100,${0.45 + envelope * 0.5})`;
+          ctx2d.lineWidth = s.thickness + 0.6;
+          ctx2d.stroke();
+          return;
+        }
+        for (let i = 0; i <= SEGMENTS; i++) {
+          const frac = i / SEGMENTS;
+          const x = x0 + frac * len;
+          const modeShape = Math.sin(Math.PI * frac);
+          const wobble = Math.sin(2 * Math.PI * VIS_FREQ * elapsed + s.phase);
+          const y = s.y + envelope * modeShape * wobble * 9;
+          if (i === 0) ctx2d.moveTo(x, y); else ctx2d.lineTo(x, y);
+        }
+        ctx2d.strokeStyle = `rgba(255,180,100,${0.45 + envelope * 0.5})`;
+        ctx2d.lineWidth = s.thickness + 0.6;
+        ctx2d.shadowColor = 'rgba(226,147,63,0.9)';
+        ctx2d.shadowBlur = 10 * envelope;
+        ctx2d.stroke();
+        ctx2d.shadowBlur = 0;
+        return;
+      }
+    }
+    ctx2d.moveTo(x0, s.y);
+    ctx2d.lineTo(x1, s.y);
+    ctx2d.strokeStyle = 'rgba(201,161,94,0.55)';
+    ctx2d.lineWidth = s.thickness;
+    ctx2d.stroke();
+  }
+
+  function drawLabels() {
+    ctx2d.font = '10px "JetBrains Mono", monospace';
+    ctx2d.fillStyle = 'rgba(138,127,110,0.8)';
+    STRINGS.forEach((s) => ctx2d.fillText(s.note, padX - 34, s.y + 3));
+  }
+
+  function frame(t) {
+    ctx2d.clearRect(0, 0, W, H);
+    drawBackground();
+    STRINGS.forEach((s) => drawString(s, t));
+    drawSparks();
+    drawCursor();
+    drawLabels();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ============================================================
+  // UI WIRING
+  // ============================================================
+  const volumeSlider = document.getElementById('volume');
+  volumeSlider.addEventListener('input', () => { AudioEngine.init(); AudioEngine.setVolume(Number(volumeSlider.value) / 100); });
+
+  const reverbBtn = document.getElementById('reverbToggle');
+  let reverbState = false;
+  reverbBtn.addEventListener('click', () => {
+    reverbState = !reverbState;
+    AudioEngine.init();
+    AudioEngine.setReverb(reverbState);
+    reverbBtn.textContent = `Room: ${reverbState ? 'On' : 'Off'}`;
+    reverbBtn.classList.toggle('active', reverbState);
+    reverbBtn.setAttribute('aria-pressed', String(reverbState));
+  });
+
+  const recordBtn = document.getElementById('recordToggle');
+  const playback = document.getElementById('playback');
+  const downloadLink = document.getElementById('downloadLink');
+  let isRecordingUI = false;
+
+  recordBtn.addEventListener('click', () => {
+    AudioEngine.init();
+    if (!isRecordingUI) {
+      isRecordingUI = true;
+      recordBtn.classList.add('active');
+      recordBtn.setAttribute('aria-pressed', 'true');
+      recordBtn.textContent = 'Stop';
+      playback.classList.remove('show');
+      downloadLink.classList.remove('show');
+      AudioEngine.startRecording();
+    } else {
+      isRecordingUI = false;
+      recordBtn.classList.remove('active');
+      recordBtn.setAttribute('aria-pressed', 'false');
+      recordBtn.textContent = 'Record';
+      const blob = AudioEngine.stopRecording();
+      if (blob && blob.size > 44) {
+        const url = URL.createObjectURL(blob);
+        playback.src = url;
+        playback.classList.add('show');
+        downloadLink.href = url;
+        downloadLink.classList.add('show');
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>

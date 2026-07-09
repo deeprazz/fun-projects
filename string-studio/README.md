@@ -2,7 +2,7 @@
 
 A browser-based virtual guitar you play with your laptop touchpad (or mouse, or keyboard, or touchscreen). No audio samples — every note is synthesized live in the browser using the Karplus-Strong algorithm.
 
-**[Live demo](#)** — replace this with your GitHub Pages link once enabled (see repo root README for setup).
+**[Live demo](https://deeprazz.github.io/fun-projects/string-studio/)** — try it in your browser, no installation needed.
 
 ## How to play
 
